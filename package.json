@@ -1,0 +1,10 @@
+{
+    "name": "lora-router",
+    "version": "0.1.0",
+    "description": "LoRA-based router for efficient reasoning",
+    "scripts": {
+        "label": "python src/data/labeler.py",
+        "train": "python src/train_router.py",
+        "eval": "python src/eval/evaluate.py"
+    }
+}
