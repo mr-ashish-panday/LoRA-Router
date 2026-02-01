@@ -20,9 +20,10 @@ def extract_answer(text: str) -> Optional[float]:
     Extract answer from model output with multi-tier fallback.
     
     Priority:
-    1. #### pattern (most reliable)
-    2. Last number on last non-empty line
-    3. Any last number (least reliable fallback)
+    1. #### pattern (GSM8K standard format)
+    2. Number at the very start (when model just outputs the answer)
+    3. Last number on last non-empty line
+    4. Any last number (least reliable fallback)
     """
     if not text:
         return None
@@ -37,7 +38,15 @@ def extract_answer(text: str) -> Optional[float]:
         except ValueError:
             pass
     
-    # Tier 2: Last number on last non-empty line
+    # Tier 2: Number at start of response (model just outputs answer)
+    start_match = re.match(r'^\s*(-?[\d,]+\.?\d*)\s*$', text.split('\n')[0])
+    if start_match:
+        try:
+            return float(start_match.group(1).replace(',', ''))
+        except ValueError:
+            pass
+    
+    # Tier 3: Last number on last non-empty line
     lines = [l.strip() for l in text.split('\n') if l.strip()]
     if lines:
         last_line = lines[-1]
@@ -49,7 +58,7 @@ def extract_answer(text: str) -> Optional[float]:
             except ValueError:
                 pass
     
-    # Tier 3: Any last number in entire text (fallback)
+    # Tier 4: Any last number in entire text (fallback)
     all_numbers = re.findall(r'-?\d+\.?\d*', text.replace(',', ''))
     all_numbers = [n for n in all_numbers if n and n not in ['-', '.', '-.']]
     if all_numbers:

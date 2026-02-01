@@ -19,14 +19,14 @@ MAX_LENGTH = 512
 
 # Prompts - MUST enforce #### format for reliable parsing
 DIRECT_PROMPT = """Solve this math problem. Give only the final numerical answer.
-You MUST format your answer as: #### <number>
+Format your final answer as: #### <number>
 
 Problem: {question}
 
-Answer: ####"""
+Answer:"""
 
 COT_PROMPT = """Solve this math problem step by step.
-After your reasoning, you MUST give the final answer as: #### <number>
+After your reasoning, format your final answer as: #### <number>
 
 Problem: {question}
 
