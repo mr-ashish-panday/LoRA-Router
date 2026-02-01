@@ -6,9 +6,10 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description="Run LoRA Router experiments")
     parser.add_argument("--stage", choices=[
-        "label", "train", "evaluate", "ablate", "analyze", "all"
+        "label", "train", "train_hybrid", "evaluate", "ablate", "analyze", "all"
     ], default="all")
     parser.add_argument("--limit", type=int, default=None, help="Limit samples for labeling")
+    parser.add_argument("--uncertainty", action="store_true", help="Capture uncertainty features")
     args = parser.parse_args()
     
     if args.stage in ["label", "all"]:
@@ -16,14 +17,22 @@ def main():
         print("STAGE 1: Labeling Dataset")
         print("="*60)
         from src.data.labeler import label_dataset
-        label_dataset(split="train", limit=args.limit)
+        n_samples = args.limit if args.limit else 500
+        label_dataset(n_samples=n_samples, capture_uncertainty=args.uncertainty)
     
     if args.stage in ["train", "all"]:
         print("\n" + "="*60)
-        print("STAGE 2: Training Router")
+        print("STAGE 2: Training Standard Router")
         print("="*60)
         from src.train_router import train
         train()
+    
+    if args.stage in ["train_hybrid"]:
+        print("\n" + "="*60)
+        print("STAGE 2b: Training Hybrid Router")
+        print("="*60)
+        from src.train_hybrid_router import train_hybrid
+        train_hybrid()
     
     if args.stage in ["evaluate", "all"]:
         print("\n" + "="*60)
