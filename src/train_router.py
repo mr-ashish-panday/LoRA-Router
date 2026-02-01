@@ -206,9 +206,18 @@ def train():
     print(f"Test AUROC: {test_metrics['auroc']:.4f}")
     print(f"Optimal threshold: {opt_thresh}")
     
-    # Save results
+    # Save results - convert numpy types to native Python for JSON
+    def convert_to_native(obj):
+        if hasattr(obj, 'item'):  # numpy scalar
+            return obj.item()
+        elif isinstance(obj, dict):
+            return {k: convert_to_native(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_to_native(v) for v in obj]
+        return obj
+    
     with open(f"{RESULTS_DIR}/training_results.json", "w") as f:
-        json.dump(test_metrics, f, indent=2)
+        json.dump(convert_to_native(test_metrics), f, indent=2)
     
     print(f"\nResults saved to {RESULTS_DIR}/training_results.json")
     
