@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from src.config import RESULTS_DIR, CHECKPOINT_DIR
 from src.inference import RoutingInference
-from src.data.labeler import extract_number
+from src.data.labeler import extract_answer
 
 
 def load_aqua_rat(n_samples: int = 50) -> List[Dict]:
@@ -29,7 +29,7 @@ def load_aqua_rat(n_samples: int = 50) -> List[Dict]:
         for opt in options:
             if opt.startswith(correct_option + ")"):
                 answer_text = opt.split(")")[1].strip()
-                answer = extract_number(answer_text)
+                answer = extract_answer(answer_text)
                 if answer is not None:
                     samples.append({
                         "question": item["question"],
@@ -52,7 +52,7 @@ def load_svamp(n_samples: int = 50) -> List[Dict]:
         if len(samples) >= n_samples:
             break
         
-        answer = extract_number(str(item["Answer"]))
+        answer = extract_answer(str(item["Answer"]))
         if answer is not None:
             samples.append({
                 "question": item["Body"] + " " + item["Question"],

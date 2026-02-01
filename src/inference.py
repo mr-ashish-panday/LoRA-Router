@@ -10,7 +10,7 @@ from src.config import (
     DIRECT_PROMPT, COT_PROMPT, ROUTER_THRESHOLD,
     DIRECT_MAX_TOKENS, COT_MAX_TOKENS, CHECKPOINT_DIR
 )
-from src.data.labeler import load_model_and_tokenizer, generate_response, extract_number
+from src.data.labeler import load_model_and_tokenizer, generate_response, extract_answer
 from src.models.router import LoRARouter
 
 
@@ -60,7 +60,7 @@ class RoutingInference:
         
         return {
             "response": response,
-            "answer": extract_number(response),
+            "answer": extract_answer(response),
             "time_sec": elapsed,
             "tokens": len(self.tokenizer.encode(response)),
             "method": "direct",
@@ -77,7 +77,7 @@ class RoutingInference:
         
         return {
             "response": response,
-            "answer": extract_number(response),
+            "answer": extract_answer(response),
             "time_sec": elapsed,
             "tokens": len(self.tokenizer.encode(response)),
             "method": "cot",

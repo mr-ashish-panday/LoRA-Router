@@ -17,18 +17,20 @@ LEARNING_RATE = 2e-4
 NUM_EPOCHS = 3
 MAX_LENGTH = 512
 
-# Prompts
+# Prompts - MUST enforce #### format for reliable parsing
 DIRECT_PROMPT = """Solve this math problem. Give only the final numerical answer.
+You MUST format your answer as: #### <number>
 
 Problem: {question}
 
-Answer:"""
+Answer: ####"""
 
-COT_PROMPT = """Solve this math problem step by step. Show your reasoning, then give the final answer.
+COT_PROMPT = """Solve this math problem step by step.
+After your reasoning, you MUST give the final answer as: #### <number>
 
 Problem: {question}
 
-Let's solve this step by step:"""
+Solution:"""
 
 # Paths
 DATA_DIR = "data"

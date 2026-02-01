@@ -1,4 +1,5 @@
 """Ablation study runner."""
+import gc
 import json
 from pathlib import Path
 from typing import List, Dict
@@ -10,6 +11,14 @@ from src.config import (
     BATCH_SIZE, LEARNING_RATE, NUM_EPOCHS,
     RESULTS_DIR, CHECKPOINT_DIR
 )
+
+
+def cleanup_gpu():
+    """Force GPU memory cleanup between runs."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
 
 def run_rank_ablation(ranks: List[int] = [2, 4, 8]) -> Dict:
@@ -30,6 +39,9 @@ def run_rank_ablation(ranks: List[int] = [2, 4, 8]) -> Dict:
         # Train and get results
         metrics = train()
         results[f"rank_{rank}"] = metrics
+        
+        # Cleanup GPU memory before next iteration
+        cleanup_gpu()
         
         # Save checkpoint with rank suffix
         Path(f"{CHECKPOINT_DIR}_rank{rank}").mkdir(exist_ok=True)
@@ -65,6 +77,9 @@ def run_target_ablation(
         
         metrics = train()
         results[name] = metrics
+        
+        # Cleanup GPU memory before next iteration
+        cleanup_gpu()
     
     config.LORA_TARGET_MODULES = original_targets
     
@@ -92,6 +107,9 @@ def run_data_ablation(sizes: List[int] = [100, 250, 500, 1000]) -> Dict:
         # Train
         metrics = train()
         results[f"n_{size}"] = metrics
+        
+        # Cleanup GPU memory before next iteration
+        cleanup_gpu()
     
     with open(f"{RESULTS_DIR}/ablation_data.json", "w") as f:
         json.dump(results, f, indent=2)

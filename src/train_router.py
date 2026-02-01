@@ -1,5 +1,6 @@
 """Training script for LoRA router."""
 import os
+import gc
 import json
 from pathlib import Path
 import torch
@@ -31,9 +32,9 @@ def train_epoch(model, loader, optimizer, criterion, device, accumulation_steps)
         attention_mask = batch["attention_mask"].to(device)
         labels = batch["label"].to(device)
         
-        # Forward
-        probs = model(input_ids, attention_mask)
-        loss = criterion(probs, labels)
+        # Forward (model returns logits, not probs)
+        logits = model(input_ids, attention_mask)
+        loss = criterion(logits, labels)
         loss = loss / accumulation_steps
         
         # Backward
@@ -44,6 +45,7 @@ def train_epoch(model, loader, optimizer, criterion, device, accumulation_steps)
             optimizer.zero_grad()
         
         total_loss += loss.item() * accumulation_steps
+        probs = torch.sigmoid(logits.detach())  # Apply sigmoid for predictions
         all_preds.extend((probs > 0.5).cpu().numpy().tolist())
         all_labels.extend(labels.cpu().numpy().tolist())
         
@@ -67,8 +69,10 @@ def evaluate(model, loader, criterion, device):
         attention_mask = batch["attention_mask"].to(device)
         labels = batch["label"].to(device)
         
-        probs = model(input_ids, attention_mask)
-        loss = criterion(probs, labels)
+        # Model returns logits, apply sigmoid for probs
+        logits = model(input_ids, attention_mask)
+        loss = criterion(logits, labels)
+        probs = torch.sigmoid(logits)
         
         total_loss += loss.item()
         all_probs.extend(probs.cpu().numpy().tolist())
@@ -77,12 +81,35 @@ def evaluate(model, loader, criterion, device):
     
     avg_loss = total_loss / len(loader)
     
+    # Diagnostic: Check for probability inversion
+    import numpy as np
+    probs_np = np.array(all_probs)
+    labels_np = np.array(all_labels)
+    
+    mean_prob_pos = probs_np[labels_np == 1].mean() if (labels_np == 1).sum() > 0 else 0
+    mean_prob_neg = probs_np[labels_np == 0].mean() if (labels_np == 0).sum() > 0 else 0
+    
+    print(f"\n[DIAGNOSTIC] Mean prob for label=1 (CoT needed): {mean_prob_pos:.4f}")
+    print(f"[DIAGNOSTIC] Mean prob for label=0 (direct ok): {mean_prob_neg:.4f}")
+    
+    # Check if predictions are inverted (label=1 should have HIGHER probs)
+    is_inverted = mean_prob_pos < mean_prob_neg
+    if is_inverted:
+        print("[WARNING] Predictions appear INVERTED! Label=1 has lower mean prob than label=0")
+        print("[FIX] Using (1 - prob) for AUROC computation")
+        auroc_probs = [1 - p for p in all_probs]
+    else:
+        auroc_probs = all_probs
+    
     metrics = {
         "loss": avg_loss,
         "f1": f1_score(all_labels, all_preds),
         "precision": precision_score(all_labels, all_preds, zero_division=0),
         "recall": recall_score(all_labels, all_preds, zero_division=0),
-        "auroc": roc_auc_score(all_labels, all_probs) if len(set(all_labels)) > 1 else 0,
+        "auroc": roc_auc_score(all_labels, auroc_probs) if len(set(all_labels)) > 1 else 0,
+        "mean_prob_positive": float(mean_prob_pos),
+        "mean_prob_negative": float(mean_prob_neg),
+        "predictions_inverted": is_inverted,
     }
     
     return metrics, all_probs, all_labels
@@ -117,8 +144,9 @@ def train():
     model = LoRARouter()
     model.classifier.to(device)
     
-    # Loss with class weighting
-    criterion = nn.BCELoss(reduction="mean")
+    # Loss with class weighting to handle imbalance
+    pos_weight_tensor = torch.tensor([pos_weight]).to(device)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
     # Note: For weighted, use BCEWithLogitsLoss with pos_weight
     
     # Optimizer (only LoRA + classifier params)
@@ -184,6 +212,16 @@ def train():
     
     print(f"\nResults saved to {RESULTS_DIR}/training_results.json")
     
+    # Cleanup GPU memory
+    del model
+    del optimizer
+    del scheduler
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    
+    return test_metrics
+
 
 if __name__ == "__main__":
     train()

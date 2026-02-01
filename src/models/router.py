@@ -86,6 +86,7 @@ class LoRARouter(nn.Module):
         return model
     
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
+        """Forward pass returning RAW LOGITS (for BCEWithLogitsLoss)."""
         # Get hidden states from base model
         outputs = self.base(
             input_ids=input_ids,
@@ -97,17 +98,26 @@ class LoRARouter(nn.Module):
         # Use last layer hidden states
         hidden_states = outputs.hidden_states[-1]
         
+        # Ensure classifier is on the same device as hidden states
+        if next(self.classifier.parameters()).device != hidden_states.device:
+            self.classifier = self.classifier.to(hidden_states.device)
+        
         # Pool and classify
         pooled = self.pooling(hidden_states, attention_mask)
         logits = self.classifier(pooled)
         
-        return torch.sigmoid(logits.squeeze(-1))
+        return logits.squeeze(-1)  # Return raw logits, NOT sigmoid
     
-    def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
-        """Get probability that CoT is needed."""
+    def predict_proba(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """Get probability that CoT is needed (applies sigmoid for inference)."""
         self.eval()
         with torch.no_grad():
-            return self.forward(input_ids, attention_mask)
+            logits = self.forward(input_ids, attention_mask)
+            return torch.sigmoid(logits)
+    
+    def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """Alias for predict_proba for backward compatibility."""
+        return self.predict_proba(input_ids, attention_mask)
     
     def save(self, path: str):
         """Save LoRA adapter and classifier."""

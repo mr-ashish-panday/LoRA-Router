@@ -15,24 +15,55 @@ from src.config import (
 )
 
 
-def extract_number(text: str) -> Optional[float]:
-    """Extract the last number from text."""
-    # Find all numbers (including decimals and negatives)
-    numbers = re.findall(r'-?\d+\.?\d*', text.replace(',', ''))
-    if numbers:
+def extract_answer(text: str) -> Optional[float]:
+    """
+    Extract answer from model output with multi-tier fallback.
+    
+    Priority:
+    1. #### pattern (most reliable)
+    2. Last number on last non-empty line
+    3. Any last number (least reliable fallback)
+    """
+    if not text:
+        return None
+    
+    text = text.strip()
+    
+    # Tier 1: Look for #### pattern (GSM8K standard format)
+    hash_matches = re.findall(r'####\s*(-?[\d,]+\.?\d*)', text)
+    if hash_matches:
         try:
-            return float(numbers[-1])
+            return float(hash_matches[-1].replace(',', ''))
         except ValueError:
-            return None
+            pass
+    
+    # Tier 2: Last number on last non-empty line
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    if lines:
+        last_line = lines[-1]
+        numbers = re.findall(r'-?[\d,]+\.?\d*', last_line)
+        numbers = [n for n in numbers if n and n not in ['-', '.', '-.']]
+        if numbers:
+            try:
+                return float(numbers[-1].replace(',', ''))
+            except ValueError:
+                pass
+    
+    # Tier 3: Any last number in entire text (fallback)
+    all_numbers = re.findall(r'-?\d+\.?\d*', text.replace(',', ''))
+    all_numbers = [n for n in all_numbers if n and n not in ['-', '.', '-.']]
+    if all_numbers:
+        try:
+            return float(all_numbers[-1])
+        except ValueError:
+            pass
+    
     return None
 
 
 def parse_answer(answer_text: str) -> Optional[float]:
-    """Parse GSM8K answer format: '#### 42'."""
-    if '####' in answer_text:
-        after_hash = answer_text.split('####')[-1].strip()
-        return extract_number(after_hash)
-    return extract_number(answer_text)
+    """Parse GSM8K gold answer format: '#### 42'. Wrapper for extract_answer."""
+    return extract_answer(answer_text)
 
 
 def load_model_and_tokenizer():
@@ -67,8 +98,7 @@ def generate_response(model, tokenizer, prompt: str, max_tokens: int) -> str:
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_tokens,
-            temperature=TEMPERATURE,
-            do_sample=False,
+            do_sample=False,  # Greedy decoding (deterministic)
             pad_token_id=tokenizer.eos_token_id,
         )
     
@@ -85,13 +115,13 @@ def generate_label(
     # Run direct
     direct_prompt = DIRECT_PROMPT.format(question=question)
     direct_response = generate_response(model, tokenizer, direct_prompt, DIRECT_MAX_TOKENS)
-    direct_answer = extract_number(direct_response)
+    direct_answer = extract_answer(direct_response)
     direct_correct = (direct_answer is not None and abs(direct_answer - ground_truth) < 0.01)
     
     # Run CoT
     cot_prompt = COT_PROMPT.format(question=question)
     cot_response = generate_response(model, tokenizer, cot_prompt, COT_MAX_TOKENS)
-    cot_answer = extract_number(cot_response)
+    cot_answer = extract_answer(cot_response)
     cot_correct = (cot_answer is not None and abs(cot_answer - ground_truth) < 0.01)
     
     # Label: 1 if CoT is NECESSARY (CoT correct AND direct wrong)
