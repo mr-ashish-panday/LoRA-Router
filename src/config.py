@@ -1,7 +1,7 @@
 """Configuration constants for the LoRA Router project."""
 
-# Model config - Qwen2 is strong at math and doesn't require license approval
-MODEL_NAME = "Qwen/Qwen2-7B-Instruct"
+# Model config - Using Mistral (already cached on server)
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
 QUANTIZATION_BITS = 4
 
 # LoRA config
