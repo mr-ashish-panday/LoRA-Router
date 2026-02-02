@@ -1,7 +1,7 @@
 """Configuration constants for the LoRA Router project."""
 
-# Model config - Llama-3 is much stronger at math than Mistral
-MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
+# Model config - Qwen2 is strong at math and doesn't require license approval
+MODEL_NAME = "Qwen/Qwen2-7B-Instruct"
 QUANTIZATION_BITS = 4
 
 # LoRA config
