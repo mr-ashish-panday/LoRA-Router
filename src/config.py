@@ -1,7 +1,7 @@
 """Configuration constants for the LoRA Router project."""
 
-# Model config
-MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
+# Model config - Llama-3 is much stronger at math than Mistral
+MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
 QUANTIZATION_BITS = 4
 
 # LoRA config
