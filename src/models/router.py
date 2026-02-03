@@ -32,13 +32,17 @@ class AttentionWeightedPooling(nn.Module):
 class LoRARouter(nn.Module):
     """Binary classifier using LoRA adapter for routing decisions."""
     
-    def __init__(self, base_model=None, hidden_dim: int = 4096):
+    def __init__(self, base_model=None, hidden_dim: int = None):
         super().__init__()
         
         if base_model is None:
             base_model = self._load_base_model()
         
         self.base = base_model
+        
+        # Dynamically get hidden_dim from model config
+        if hidden_dim is None:
+            hidden_dim = self.base.config.hidden_size
         self.hidden_dim = hidden_dim
         
         # Freeze base model
