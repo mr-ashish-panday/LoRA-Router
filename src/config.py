@@ -1,7 +1,7 @@
 """Configuration constants for the LoRA Router project."""
 
-# Model config - Using Mistral (already cached on server)
-MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
+# Model config - Qwen2 (must match model used for labeling)
+MODEL_NAME = "Qwen/Qwen2-7B-Instruct"
 QUANTIZATION_BITS = 4
 
 # LoRA config
