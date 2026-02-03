@@ -312,7 +312,7 @@ def run_ood_evaluation(n_samples: int = 100):
             all_results[dataset_key] = {"error": str(e)}
     
     # Save results
-    output_path = RESULTS_DIR / "ood_transfer_results.json"
+    output_path = Path(RESULTS_DIR) / "ood_transfer_results.json"
     with open(output_path, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
     
