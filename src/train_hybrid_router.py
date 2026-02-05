@@ -227,9 +227,13 @@ def train_hybrid():
     val_dataset = HybridRouterDataset(val_data, tokenizer)
     test_dataset = HybridRouterDataset(test_data, tokenizer)
     
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+    # Use smaller batch size for hybrid (full forward pass needs more memory)
+    hybrid_batch_size = 1
+    hybrid_grad_accum = GRADIENT_ACCUMULATION * BATCH_SIZE  # Keep effective batch size same
+    
+    train_loader = DataLoader(train_dataset, batch_size=hybrid_batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=hybrid_batch_size)
+    test_loader = DataLoader(test_dataset, batch_size=hybrid_batch_size)
     
     # Loss with class weighting
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight]).to(device))
@@ -254,7 +258,7 @@ def train_hybrid():
         
         train_metrics = train_epoch(
             model, train_loader, optimizer, scheduler, criterion,
-            device, GRADIENT_ACCUMULATION
+            device, hybrid_grad_accum
         )
         print(f"Train Loss: {train_metrics['loss']:.4f}, Train F1: {train_metrics['f1']:.4f}")
         
